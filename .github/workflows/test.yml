@@ -1,24 +1,47 @@
-name: Python CI
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
+  Build:
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version:
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          - '3.9'
+        toxenv:
+          - py38-django22
+          - py38-django22
+          - py38-django31
+          - py38-django32
+          - py38-django22
+          - py38-django31
+          - py38-django32
+          - py38-django22
+          - py38-django31
+          - py38-django32
+          - py39-django22
+          - py39-django31
+          - py39-django32
+          - lint
+          - coverage
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: pip install -U .
-      - name: Run python tests
-        run: python -m unittest discover
+      - run: pip install tox tox-gh-actions codecov
+      - run: tox -e ${{ matrix.toxenv }}
+      - name: Upload coverage to Codecov
+        if: matrix.toxenv == 'coverage'
+        run: codecov
