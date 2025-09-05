@@ -1,37 +1,28 @@
-name: Python Tests
+name: Python package
 
 on:
-  pull_request:
   push:
-    branches: [main, main]
+    branches:
+      - main
 
 jobs:
-  test:
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        python: [3.8, 3.8, 3.8, 3.8, 3.8]
+  build:
 
-    name: Python ${{ matrix.python }} Test
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.9]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Install unittest2pytest
-        run: pip install -e .
-
-      - name: Install test dependencies
-        run: pip install -r tests/requirements.txt | cat
-
-      - name: Run test suite
-        run: py.test -vv
-
-    allow_failures:
-      - python: 3.8
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install requirements
+      run: |
+        python -m pip install --upgrade pip
+        pip install .
+    - name: Run checks
+      run: make check PIP=pip BUILDBOT=buildbot
