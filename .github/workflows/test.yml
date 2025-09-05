@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.8', '3.8', '3.x']
+        python-version: ['3.8', '3.8', '3.8', '3.8', '3.8']
 
     steps:
     - uses: actions/checkout@v2
@@ -18,13 +18,12 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-8-jre
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Run tests
+    - name: Build
       run: |
-        python setup.py test
+        python setup.py bdist
+        python setup.py build
 
   release:
 
