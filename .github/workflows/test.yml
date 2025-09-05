@@ -1,35 +1,31 @@
-name: CI
-
+name: ci
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - releases/**
   pull_request:
-  schedule:
-    # 13:22 UTC on Tuesdays
-    - cron: "22 13 * * TUE"
-  workflow_dispatch:
-  repository_dispatch:
-    types: [tests]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build and Lint
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
     strategy:
       matrix:
-        python-version: ["3.8", "3.8", "3.9", "pypy-3.6"]
-        django-version: ["Django>=2.2,<2.3", "Django>=3.0,<3.2", "Django>=3.2,<3.3"]
-
+        python-version: [3.8, 3.8, 3.8]
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install Poetry
-      run: pip install poetry
-    - name: Install dependencies
-      run: |
-        poetry install -q
-        poetry run pip install -q ${{ matrix.django-version }}
-    - name: Run tests
-      run: poetry run python -m pytest
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          npm install -g jshint
+          pip install -r requirements.txt
+
+      - name: Run Make
+        run: make
