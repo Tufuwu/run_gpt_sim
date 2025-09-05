@@ -1,33 +1,50 @@
-name: Documentation Build
+name: CI
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.8"
+          - "3.8"
+          - "3.8"
+          - "3.8"
+    name: Python ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v2
+
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
+        run: pip install --requirement dev-requirements.txt
+
+      - name: Validate coding guidelines
+        if: matrix.python-version == '3.8'
+        run: pre-commit run --all-files
+
+      - name: Run tests
         run: |
-          pip3 install doc8 sphinx
-          pip3 install git+https://github.com/osrf/sphinx-tabs
-          pip3 install sphinx_multiversion
-      - name: Build HTML
-        run: make html 2> stderr.log
-      - name: Display stderr log
-        run: cat stderr.log
-      - name: Run doc8
+          python setup.py develop
+          pytest --verbose
+
+      - name: Build and install the package
         run: |
-          doc8 --ignore D001 --ignore-path build --ignore-path source/Tutorials/Actions
-          doc8 --ignore D000 --ignore D001 --ignore-path build source/Tutorials/Actions
-      - name: Fail on stderr output
+          python setup.py bdist_wheel
+          python setup.py install
+
+      - name: Test drive the installed pygount
         run: |
-          if [ -s "stderr.log" ]; then exit 1; fi
+          pygount --version
+          pygount --help
+          pygount pygount *.cfg *.yaml
+          pygount --format=summary pygount *.cfg *.yaml
+
+      - name: Upload coverage to Coveralls
+        if: matrix.python-version == '3.8'
+        run: coveralls
