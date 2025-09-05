@@ -1,65 +1,65 @@
-name: Python package
+name: CI
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-
-concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  - push
+  - pull_request
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
+  test:
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8"]
-        pg-version: ["9.6", "10", "11", "12"]
-        django-version: ["2.1", "2.2", "3.0", "3.1"]
-
+        python-version: ['3.8', '3.8', '3.8', '3.8', 'pypy-3.6']
+        os: [ubuntu-latest]
+        include:
+          - python-version: 3.8
+            py: py38
+          - python-version: 3.8
+            py: py38
+          - python-version: 3.8
+            py: py38
+          - python-version: 3.8
+            py: py38
+          - python-version: pypy-3.6
+            py: pypy-3.6
+          - python-version: 3.8
+            py: py38-pytest
+          - python-version: 3.8
+            py: py38-pytest
+          - python-version: 3.8
+            py: py38-pytest
+          - python-version: 3.8
+            py: py38-failskip
+          - python-version: 3.8
+            py: py38-limit
+          - python-version: 3.8
+            py: py38-prefix
+          - python-version: 3.8
+            py: placement
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Set up PostgreSQL ${{ matrix.pg-version }}
-        uses: harmon758/postgresql-action@v1.1.0
-        with:
-          postgresql version: ${{ matrix.pg-version }}
-
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y dirmngr apt-transport-https unzip rabbitmq-server
-          sudo apt-get install -y clickhouse-client clickhouse-server clickhouse-common-static
-          sudo service clickhouse-server restart
-          python -m pip install --upgrade pip
-          pip install -r requirements-test.txt
-          pip install Django==${{ matrix.django-version }}.*
-          python setup.py install
-
-      - name: Set up database
-        run: |
-          psql -c 'CREATE ROLE test;' -U postgres
-          psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
-          psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
-          psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
-          psql -c 'CREATE DATABASE test OWNER test;' -U postgres
-          psql -c 'CREATE DATABASE test2 OWNER test;' -U postgres
-
-      - name: Output software versions
-        run: |
-          erl -eval 'erlang:display(erlang:system_info(otp_release)), halt().'  -noshell
-          rabbitmqctl status | grep "RabbitMQ"
-          clickhouse-client --query "SELECT version();"
-          psql -tc 'SHOW server_version' -U postgres
-
+          python -m pip install --upgrade tox
       - name: Run tests
-        run: python runtests.py
+        run: |
+          tox -e ${{ matrix.py }}
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade tox
+      - name: Run lint
+        run: |
+          tox -e pep8
