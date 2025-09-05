@@ -1,60 +1,28 @@
 name: CI
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
+  build:
     strategy:
-      fail-fast: false
       matrix:
-        python-version: [3.8, 3.8]
         os: [ubuntu-latest]
-
+        python-version: ['3.8', '3.8', '3.8', '3.9']
+        numpy-version: ['1.15.4', '1.19.4']
+    runs-on: ${{ matrix.os }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-
+    - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-
     - name: Install dependencies
       run: |
-        pip install -r requirements/tests.txt
-        pip install coveralls
-
-    - name: Run tests
-      run: nosetests --with-coverage --cover-erase --cover-package=temba_client
-
-    - name: Lint with flake8
-      run: flake8
-
-    - name: Upload coverage data to coveralls.io
-      run: coveralls --service=github
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        COVERALLS_FLAG_NAME: ${{ matrix.os }} - ${{ matrix.python-version }}
-        COVERALLS_PARALLEL: true
-
-  coveralls:
-    name: Indicate completion to coveralls.io
-    needs: test
-    runs-on: ubuntu-latest
-    container: python:3-slim
-    steps:
-    - name: Finished
+        python -m pip install --upgrade pip
+        pip install numpy==${{ matrix.numpy-version }} scipy matplotlib>=3 cython>=0.28
+    - name: Build
       run: |
-        pip3 install --upgrade coveralls
-        coveralls --finish
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-notifications:
-  slack:
-    secure: F6HxphE09WAOd1ux2oEzrgKAoyCLGqauqR/nH5vXHVFUZrKZHvGmhCPFKkLHJnpeNIE4l4xMtRAqNb5EuFJJzjO5myNJ2Ihx1pfYUJF+5GuYvWttpdRrPh6MSVmR3/oZWSKD67abrVKhX85zg4RNLz7RmblooSbPLa8Jj+p72/s=
+        dev/build.sh
+    - name: Test
+      run: |
+        dev/test.sh
