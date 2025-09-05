@@ -1,32 +1,49 @@
-name: Python package
+name: CI
 
-on: [push]
+on:
+  push:
+    branches-ignore:
+      - auto-backport-of-pr-[0-9]+
+      - v[0-9]+.[0-9]+.[0-9x]+-doc
+  pull_request:
 
 jobs:
-  build:
+  test:
+    name: "Python ${{ matrix.python-version }}"
+    runs-on: ubuntu-22.04
 
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.9, 3.8]
+        python-version: ["3.8"]
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade pytest
-        pip install --editable .
-    - name: Test with pytest
-      run: |
-        pytest
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-  allow_failures:
-    python-version: [3.8]
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
 
-notifications:
-  email: false
+      - name: Install system dependencies
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get install -y libeigen3-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-randomly
+
+      - name: Install package
+        run: |
+          pip install -e .
+
+      - name: Run tests
+        run: |
+          make coverage
+
+      - name: Upload code coverage
+        uses: codecov/codecov-action@v1
