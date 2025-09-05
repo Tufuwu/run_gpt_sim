@@ -1,40 +1,35 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-      - dev
   pull_request:
     branches:
       - main
-      - dev
 
 jobs:
-  build-and-test:
-    name: Run the tests
+  tests:
     runs-on: ${{ matrix.os }}
-
     strategy:
+      max-parallel: 4
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.8"]
+        os: [ubuntu-latest, windows-latest]
+        python-version: [3.8, 3.8, 3.8, 3.8]
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          miniforge-variant: Miniforge3
-          miniforge-version: latest
-          auto-update-conda: true
-
       - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install numpy scipy matplotlib pandas sympy nose statsmodels tabulate
-          pip install .
-
+          pip install flake8
+          pip install -r requirements.txt
+      - name: Run flake8
+        run: |
+          flake8 .
+      - name: Set SECRET_KEY
+        run: |
+          sed -i.bak "s/^SECRET_KEY = ''$/SECRET_KEY = 'randomstring'/g" tramcar/settings.py
       - name: Run tests
-        run: nosetests
+        run: |
+          python manage.py test
