@@ -2,70 +2,41 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
+  Build:
+    runs-on: ubuntu-22.04
     strategy:
-      fail-fast: false
       matrix:
-        python-version: [3.8, 3.8, 3.9]
-        os: [ubuntu-latest]
-
+        python-version:
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          - '3.9'
+          - '3.10'
+          - '3.8'
+        django-version:
+          - '2.2'
+          - '3.0'
+          - 'main'
+        include:
+          - python-version: '3.8'
+            django-version: 'docs'
+          - python-version: '3.8'
+            django-version: 'quality'
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-        pip install -r tests/requirements.txt
-        python setup.py -q install
-
-    - name: Run tests
-      run: nosetests --with-coverage --cover-package=btcde
-
-    - name: Upload coverage data to codecov
-      uses: codecov/codecov-action@v2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
         with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '16'
-
-      - name: Setup
-        run: npm install -g semantic-release @semantic-release/github @semantic-release/changelog @semantic-release/commit-analyzer @semantic-release/git @semantic-release/release-notes-generator semantic-release-pypi
-
-      - name: Set up python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-
-      - name: Install setuptools
-        run: python -m pip install --upgrade setuptools wheel twine
-
-      - name: Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: npx semantic-release
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/checkout@v2
+      - run: pip install tox tox-gh-actions
+      - run: tox
+    allow_failures:
+      - python-version: '3.8'
+      - django-version: 'main'
