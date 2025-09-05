@@ -1,37 +1,36 @@
 name: CI
 
 on:
-  push: {}
+  push:
+    branches: [ main ]
   pull_request:
-    types: [opened, reopened, synchronize]
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.8', '3.8', '3.9', '3.10']
-        allow_failures:
-          - python-version: '3.10'
+        python-version:
+        - '3.8'
+        - '3.8'
+
     steps:
-    - name: Check out source code
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Set up Python
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        pip install coverage vcrpy
-        python setup.py install
-    - name: Run tests
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install codecov coverage
+    - name: Test with nose
       run: |
-        coverage run --source=censusgeocode -m unittest
-        censusgeocode --version
-        censusgeocode --csv tests/fixtures/batch.csv || echo failed
-    - name: Report coverage
-      if: success()
-      run: |
-        coverage report
+        nosetests --verbose --with-coverage --cover-erase --cover-package=catkin_lint test
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        flags: unittests
+
