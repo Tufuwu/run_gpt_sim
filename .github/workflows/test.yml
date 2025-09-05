@@ -1,30 +1,67 @@
-name: Lint and Test
+name: CI
 
-on: [push, pull_request]
-
-env:
-  FORCE_COLOR: 1
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  tests:
+    name: "Python ${{ matrix.python-version }}"
+    runs-on: "ubuntu-latest"
+    env:
+      USING_COVERAGE: "3.8,3.8,3.8,3.8"
+
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.8", "pypy-3.8", "pypy-3.8"]
+
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
+          python-version: "${{ matrix.python-version }}"
+      - name: "Install dependencies"
         run: |
-          python -m pip install -U pip
-          python -m pip install -U flake8
+          set -xe
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip wheel
+          python -m pip install --upgrade tox
+      - name: "Run tox targets for ${{ matrix.python-version }}"
+        run: "python -m tox"
 
-      - name: Lint
-        run: |
-          flake8 . --max-line-length=120 --exclude .git,lib,__pycache__
+      # We always use a modern Python version for combining coverage to prevent
+      # parsing errors in older versions for modern code.
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "3.9"
+
+      - name: "Upload coverage to Codecov"
+        if: "contains(env.USING_COVERAGE, matrix.python-version)"
+        uses: "codecov/codecov-action@v1"
+        with:
+          fail_ci_if_error: true
+
+  package:
+    name: "Build & verify package"
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - uses: "actions/checkout@v2"
+      - uses: "actions/setup-python@v2"
+        with:
+          python-version: "3.9"
+
+      - name: "Install poetry and twine"
+        run: "python -m pip install poetry twine check-wheel-contents"
+      - name: "Build package"
+        run: "poetry build"
+      - name: "List result"
+        run: "ls -l dist"
+      - name: "Check wheel contents"
+        run: "check-wheel-contents dist/*.whl"
+      - name: "Check long_description"
+        run: "python -m twine check dist/*"
