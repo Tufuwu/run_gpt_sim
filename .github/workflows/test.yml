@@ -1,26 +1,73 @@
-name: Python CI
+name: pydot CI
 
-on: 
+on:
   push:
     branches:
       - main
   pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8, pypy-3.6.8-7.3.1, pypy-3.6.8-7.3.1]
+        os: [ubuntu-22.04, ubuntu-22.04]
+        python-version: ['3.8', '3.8', '3.9']
+        arch: [amd64, ppc64le]
+        include:
+          - os: ubuntu-22.04
+            python-version: '3.8'
+            arch: amd64
+          - os: ubuntu-22.04
+            python-version: '3.8'
+            arch: ppc64le
+          - os: ubuntu-22.04
+            python-version: '3.9'
+            arch: ppc64le
+
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: pip install tox
-    - name: Run tests
-      run: tox -e py
+        architecture: ${{ matrix.arch }}
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y graphviz
+        python -m pip install --upgrade pip setuptools
+        python setup.py sdist
+        pip install dist/pydot-*.tar.gz
+        pip install -r requirements.txt
+
+    - name: Run Tests
+      run: |
+        cd test/
+        python pydot_unittest.py
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Install Linter
+      run: |
+        python -m pip install --upgrade pip setuptools
+        pip install -e .[dev]
+
+    - name: Run Linter
+      run: black --check --diff .
