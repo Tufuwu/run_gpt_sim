@@ -1,4 +1,4 @@
-name: CI
+name: Python Package
 
 on:
   push:
@@ -6,62 +6,48 @@ on:
       - main
   pull_request:
     branches:
-      - "*"
+      - main
 
 jobs:
-  tests:
-    name: Python ${{ matrix.python-version }}
+  test:
     runs-on: ubuntu-latest
-
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8"]
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.9]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-
       - name: Install dependencies
         run: |
-          pip install -U pip
-          pip install IPython==$IPYTHON_VERSION
-          pip install pandas==$PANDAS_VERSION
-          pip install .[test]
-
+          python -m pip install --upgrade pip
+          pip install -r dev-requirements.txt
+          pip install -e .
       - name: Run tests
-        run: |
-          python -c 'import pytorch_memlab'
-          pytest test/test_mem_reporter.py
+        run: python setup.py test
 
   deploy:
-    if: github.ref_type == 'tag' && matrix.python-version == '3.8'
-    name: Deploy to PyPI
     runs-on: ubuntu-latest
-
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && contains(github.event.head_commit.message, 'v')
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.x
+        uses: actions/setup-python@v2
         with:
-          python-version: 3.8
-          cache: pip
-
+          python-version: 3.x
       - name: Install dependencies
         run: |
-          pip install -U pip
-          pip install IPython==$IPYTHON_VERSION
-          pip install pandas==$PANDAS_VERSION
-          pip install .[test]
-
-      - name: Deploy to PyPI
+          python -m pip install --upgrade pip
+          pip install -r dev-requirements.txt
+          pip install -e .
+      - name: Build and publish
         env:
-          TWINE_USERNAME: yoursky
+          TWINE_USERNAME: phillbaker
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
         run: |
           python setup.py sdist bdist_wheel
-          twine upload dist/*
+          twine upload --skip-existing dist/*
+
