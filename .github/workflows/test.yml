@@ -3,24 +3,39 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - "*"
   pull_request:
+    branches:
+      - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  test:
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.8"]
-        allow_failures:
-          - python-version: "3.8"
-          - python-version: "3.8"
+        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.9", "pypy-3.6"]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    name: "${{ matrix.os }} Python: ${{ matrix.python-version }}"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: pip install tox-travis coveralls
-      - run: tox
-      - if: success()
-        run: coveralls
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        pip install coverage
+    - name: Run tests
+      run: |
+        coverage run --source=olefile -m nose tests
+    - name: Upload Coverage
+      run: |
+        pip install coveralls
+        coveralls
+    - name: After Script
+      run: |
+        coverage report
+        pip install pycodestyle pyflakes
+        pyflakes .
+        pycodestyle --statistics --count .
