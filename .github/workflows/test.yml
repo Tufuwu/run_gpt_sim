@@ -1,38 +1,35 @@
-name: Test
+name: Lint and Tests
 
-on: [push, pull_request, workflow_dispatch]
-
-env:
-  FORCE_COLOR: 1
+on: [push, pull_request]
 
 jobs:
+
   test:
-    runs-on: ${{ matrix.os }}
+
+    runs-on: ubuntu-latest
+
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8"]
-        os: [ubuntu-latest]
+        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.8", "3.9", "pypy-3.6"]
 
     steps:
-      - uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: "Pull the repository"
+        uses: actions/checkout@v2
+
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: |
-          sudo apt-get -y update
-          python3 setup.py install
-          python -m pip install -U pip
-          python -m pip install -U wheel
-          python -m pip install pytest-cov
-          python -m pip install .[ja]
+          pip install flake8
 
-      - name: Test
+      - name: "Test with pytest"
         run: |
-          python3 -m pytest
-          ./test.sh
+          python -m pytest -v .
+
+      - name: "Lint with Flake8"
+        run: |
+          flake8
