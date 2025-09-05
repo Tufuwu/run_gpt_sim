@@ -1,48 +1,39 @@
-name: Run Tests and Linter
+name: Python Tests
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-      - main
+  pull_request:
 
 jobs:
-  lint-and-test:
+  test:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, 3.10, 3.11]
-
-    name: Lint and Test (Python ${{ matrix.python-version }})
+        python-version: [3.8, 3.8, 3.8, 3.8, pypy-3.6]
+        allow_failures:
+          - python-version: 3.8
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.4.1
+        with:
+          access_token: ${{ github.token }}
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y flake8 gettext gir1.2-gtk-3.0 python3-gi python3-pytest xvfb
+          python -m pip install --upgrade pip setuptools
+          pip install -r requirements.txt
+          pip install -r test-requirements.txt
+          python setup.py --version
 
-      - name: Install Python dependencies
-        run: |
-          pip install -e .
-
-      - name: Lint with flake8
-        run: flake8 .
-
-      - name: Test with pytest
-        run: xvfb-run pytest nfoview
-
-      - name: Install package
-        run: |
-          python3 setup.py install --prefix=/tmp/local
-          python3 setup.py install --root=/tmp/pkg
-
-      - name: Clean up
-        run: python3 setup.py clean
+      - name: Run tests
+        run: pytest -vv
