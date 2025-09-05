@@ -1,54 +1,36 @@
-name: CI
+name: Continuous Integration
 
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
-  setup:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout-code
-        uses: actions/checkout@v3
-
-      - name: install-dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install verilator libevent-dev libjson-c-dev
-
-      - name: get-migen-litex-cores
-        run: |
-          wget https://raw.githubusercontent.com/enjoy-digital/litex/main/litex_setup.py
-          python3 litex_setup.py init install
-
-      - name: install-package
-        run: |
-          python3 setup.py install
-
-  test:
-    needs: setup
-    runs-on: ubuntu-22.04
+  build:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: [3.8, 3.8, 3.8]
+    name: Python ${{ matrix.python-version }}
     steps:
-      - name: checkout-code
-        uses: actions/checkout@v3
-
-      - name: setup-python
-        uses: actions/setup-python@v3
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: get-riscv-toolchain
+          architecture: x64
+      - name: Install dependencies
         run: |
-          wget https://static.dev.sifive.com/dev-tools/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-          tar -xvf riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6.tar.gz
-          echo "$PWD/riscv64-unknown-elf-gcc-20171231-x86_64-linux-centos6/bin/" >> $GITHUB_PATH
-
-      - name: run-tests
+          pip install bandit flake8 python-coveralls coverage liccheck
+          pip install -r requirements.txt
+          python setup.py bdist_wheel
+          pip install dist/feedgen*
+      - name: Run tests
+        run: make test
+      - name: License check
+        run: liccheck -s .licenses.ini
+      - name: Run feedgen
         run: |
-          python setup.py test
+          python -m feedgen
+          python -m feedgen atom
+          python -m feedgen rss
+      - name: Coveralls
+        if: success()
+        run: coveralls
