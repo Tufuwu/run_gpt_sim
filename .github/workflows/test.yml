@@ -7,67 +7,33 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.8', '3.8', '3.8', '3.8', '3.8']
-        include:
-          - python-version: '3.8'
-            build: default
-          - python-version: '3.8'
-            build: default
-          - python-version: '3.8'
-            build: default
-          - python-version: '3.8'
-            build: default
-          - python-version: '3.8'
-            build: default
-          - python-version: '3.8'
-            build: docs
-          - python-version: '3.8'
-            build: pep8
-          - python-version: '3.8'
-            build: cover
+  build:
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
+
+      - name: Set up Python 3.9
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install pbr tox tox-gh-actions
-          if [ "${{ matrix.build }}" == "docs" ]; then
-            pip install -r doc/requirements.txt
-          fi
-      - name: Run tests
-        run: |
-          if [ "${{ matrix.build }}" == "default" ]; then
-            tox
-          else
-            tox -e ${{ matrix.build }}
-          fi
-    allow_failures:
-      - python-version: '3.8'
+          python-version: 3.9
 
-  deploy:
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Build and publish
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      - name: Install Docker
         run: |
-          pip install build twine
-          python -m build --sdist --wheel
-          twine upload --skip-existing dist/*
+          sudo apt-get update
+          sudo apt-get -y install apt-transport-https ca-certificates curl software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get -y install docker-ce
 
+      - name: Build Docker Image
+        run: docker build -t draft-kings-fun .
+
+      - name: Lint with flake8
+        run: docker run draft-kings-fun flake8 draftfast
+
+      - name: Run Tests
+        run: docker run draft-kings-fun nosetests --with-coverage --cover-package=.
