@@ -1,36 +1,35 @@
-name: Python package
+name: CI
 
-on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
+on: [push, pull_request]
 
 jobs:
-  test:
+  build:
+
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.9, 3.10, 3.11]
+        python-version: [3.8, 3.8]
+    env:
+      MAIN_PYTHON_VERSION: 3.8
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v2
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install tox-travis
-
-      - name: Test the code
-        run: |
-          tox
-
-  # TODO: Add notification step for Slack
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install system dependencies
+      run: sudo apt-get install -y libicu-dev
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+        pip install pyicu coverage nose twine
+    - name: Run the test suite
+      run: |
+        nosetests --with-coverage --cover-package=fingerprints --cover-erase
+    - name: Build and upload package
+      if: github.ref == 'refs/tags/' + github.ref_name
+      run: |
+        python setup.py sdist bdist_wheel
+        twine upload dist/*
