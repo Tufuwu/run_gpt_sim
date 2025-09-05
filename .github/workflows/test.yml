@@ -1,37 +1,38 @@
-name: Python CI
+name: Test
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
+
+env:
+  FORCE_COLOR: 1
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python_version: [3.8, 3.8, 3.8, 3.8, 3.8, pypy-3.6]
+        python-version: ["3.8", "3.8", "3.8"]
+        os: [ubuntu-latest]
+
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-    - name: Set up Python ${{ matrix.python_version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python_version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
 
-    - name: Install dependencies
-      run: |
-        python setup.py develop
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          python3 setup.py install
+          python -m pip install -U pip
+          python -m pip install -U wheel
+          python -m pip install pytest-cov
+          python -m pip install .[ja]
 
-    - name: Run tests
-      run: |
-        python -m pytest
-
-  notifications:
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-    - name: Send Slack notification
-      uses: 8398a7/action-slack@v3
-      with:
-        status: ${{ job.status }}
-        fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Test
+        run: |
+          python3 -m pytest
+          ./test.sh
