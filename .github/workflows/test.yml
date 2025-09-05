@@ -1,31 +1,31 @@
-name: MTGJSON5 Tests
+name: Validate
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
-
-permissions:
-  contents: read
+  schedule:
+    # 13:22 UTC on Tuesdays
+    - cron: "22 13 * * TUE"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [validate]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.8", "3.8", "3.8"]
+        python-version: ["3.8"]
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python
-      uses: actions/setup-python@v3
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python }}
+        python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip setuptools wheel
-        pip install tox
-        pip install -r requirements_test.txt
-    - name: Test with tox
-      run: tox
+        python -m pip install --upgrade pip
+    - name: Validate
+      run: python validate.py
