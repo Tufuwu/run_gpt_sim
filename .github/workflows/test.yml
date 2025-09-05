@@ -1,4 +1,4 @@
-name: Python CI
+name: CI
 
 on:
   push:
@@ -10,24 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python:
-          - version: 3.8
-            toxenv: py38
-          - version: 3.8
-            toxenv: py38
-
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.9]
+        tox-env: [tests, mypy, apidocs]
     steps:
       - uses: actions/checkout@v2
-
-      - name: Set up Python ${{ matrix.python.version }} and tox ${{ matrix.python.toxenv }}
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python.version }}
-
-      - name: Install Tox
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
         run: |
-          pip install tox
-
+          python -m pip install --upgrade pip
+          pip install tox codecov
       - name: Run Tox
         run: |
-          tox -e ${{ matrix.python.toxenv }}
+          if [[ -n "${{ matrix.tox-env }}" ]]; then tox -e ${{ matrix.tox-env }}; fi
+      - name: Build and Push Docs
+        if: matrix.tox-env == 'apidocs'
+        run: |
+          ./.travis/build_docs.sh
+      - name: Upload coverage to Codecov
+        if: matrix.tox-env == 'tests'
+        run: |
+          codecov
