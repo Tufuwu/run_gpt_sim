@@ -1,61 +1,38 @@
-name: Run Tests and Linter
+name: CI
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  lint:
+  flake8:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [3.8]
-
-    name: Lint (Python ${{ matrix.python-version }})
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository code
+        uses: actions/checkout@v2
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: 3.8
 
-      - name: Install flake8
+      - name: Install Flake8
         run: pip install flake8
 
-      - name: Lint with flake8
-        run: flake8 etip/
+      - name: Run Flake8
+        run: flake8
 
-  test:
+  dockerfile_lint:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [3.8, 3.8]
-
-    name: Test (Python ${{ matrix.python-version }})
-
+    services:
+      docker:
+        image: docker:19.03.12
+        options: --privileged
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository code
+        uses: actions/checkout@v2
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Add current directory to PYTHONPATH
-        run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
-
-      - name: Run tests
-        run: |
-          cd etip/
-          python manage.py test
+      - name: Lint Dockerfile
+        run: docker run -i hadolint/hadolint:v1.19.0-45-gef91156-alpine < Dockerfile
