@@ -1,37 +1,30 @@
-name: Lint and Tests
+name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-
   test:
-
-    runs-on: ubuntu-latest
-
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} - ${{ matrix.python }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.8"]
-
+        os: [ubuntu-latest]
+        python: [3.8, 3.8]
     steps:
-
-      - name: "Pull the repository"
-        uses: actions/checkout@v2
-
-      - name: "Set up Python ${{ matrix.python-version }}"
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: "Install dependencies"
-        run: |
-          sudo apt-get install coinor-cbc
-          pip install -r requirements.txt
-          python setup.py -q install
-
-      - name: "Lint with Flake8"
-        run: |
-          flake8
-
-      - name: "Test with pytest"
-        run: |
-          py.test
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: Install
+      run: |
+        CFLAGS="-O0" python -m pip install --upgrade pip setuptools
+        python -m pip install -e .
+    - name: Display Python version
+      run: python -c "import sys; print(sys.version)"
+    - name: Run Tests
+      run: ./runtests.sh
