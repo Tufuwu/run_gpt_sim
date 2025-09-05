@@ -1,4 +1,4 @@
-name: Python CI
+name: Python Tests
 
 on:
   push:
@@ -9,23 +9,20 @@ on:
       - main
 
 jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
-    name: Lint and Test
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python-version: [3.8]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
     steps:
-      - name: Check out source repository
-        uses: actions/checkout@v2
-
-      - name: Set up Python environment
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.8"
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt install python3-pip
-          pip install -U tox
-
-      - name: Run Tox
-        run: tox
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Run Tests
+      run: |
+        python runtest.py
