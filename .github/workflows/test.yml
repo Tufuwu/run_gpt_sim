@@ -1,37 +1,40 @@
-name: CI
+name: Python package
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      max-parallel: 4
       matrix:
-        py:
-          - "3.9"
-          - "3.8"
-          - "3.8"
-          - "3.8"
-        include:
-          - py: "3.9"
-            env: TOXENV=mypy
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.9, pypy-3.6]
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Setup Python ${{ matrix.py }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.py }}
-      - name: Install dependencies
-        run: pip install tox-gh>=1.2 codecov
-      - name: Setup test suite
-        run: tox -vv --notest
-      - name: Run test suite
-        run: tox --skip-pkg-install
-      - name: Upload coverage to Codecov
-        if: success()
-        run: codecov
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Cache Hypothesis
+      uses: actions/cache@v2
+      with:
+        path: ${{ github.workspace }}/.hypothesis
+        key: ${{ runner.os }}-hypothesis-${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade --upgrade-strategy only-if-needed pytest pytest-catchlog
+        pip install .
+    - name: Run tests
+      run: |
+        pytest
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
