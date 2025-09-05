@@ -1,178 +1,33 @@
-name: CI Testing
-
-on:
-  pull_request:
-    branches:
-      - main
-  push:
-    branches:
-      - main
-
+name: CI
+on: [push, pull_request]
 jobs:
-  test:
-    name: "Python ${{ matrix.python }} Django ${{ matrix.django }} Mode ${{ matrix.mode }}"
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - python: "3.8"
-            django: "2.2"
-            mode: "flake8"
-          - python: "3.8"
-            django: "2.2"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "2.2"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.0"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.0"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.0"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.1"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.1"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.1"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.2"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.2"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.2"
-            mode: "docs"
-          - python: "3.8"
-            django: "dev"
-            mode: "flake8"
-          - python: "3.8"
-            django: "dev"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "dev"
-            mode: "docs"
-          - python: "3.8"
-            django: "2.2"
-            mode: "flake8"
-          - python: "3.8"
-            django: "2.2"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "2.2"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.0"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.0"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.0"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.1"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.1"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.1"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.2"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.2"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.2"
-            mode: "docs"
-          - python: "3.8"
-            django: "dev"
-            mode: "flake8"
-          - python: "3.8"
-            django: "dev"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "dev"
-            mode: "docs"
-          - python: "3.8"
-            django: "2.2"
-            mode: "flake8"
-          - python: "3.8"
-            django: "2.2"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "2.2"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.0"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.0"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.0"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.1"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.1"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.1"
-            mode: "docs"
-          - python: "3.8"
-            django: "3.2"
-            mode: "flake8"
-          - python: "3.8"
-            django: "3.2"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "3.2"
-            mode: "docs"
-          - python: "3.8"
-            django: "dev"
-            mode: "flake8"
-          - python: "3.8"
-            django: "dev"
-            mode: "flake8-strict"
-          - python: "3.8"
-            django: "dev"
-            mode: "docs"
-
+        os:
+          - ubuntu-latest
+        python-version:
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          - '3.8'
     steps:
-      - name: Install dependencies
-        run: sudo apt-get install -y binutils libproj-dev gdal-bin libsqlite3-mod-spatialite
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Setup Python ${{ matrix.python }}
+      - uses: actions/checkout@v2
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python }}
-
-      - name: Install Packages
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
         run: |
-          python -m pip install -U pip
-          python -m pip install -U wheel virtualenv
-          python -m pip install tox coveralls
-
-      - name: Run Tests
+          python -m pip install flake8
+          python -m pip install coveralls
+          python -m pip install rply
+      - name: Run tests
         run: |
-          coverage erase
-          tox -e py${{ matrix.python }}-${{ matrix.django }}${{ matrix.mode }}
-          coveralls
-        continue-on-error: ${{ matrix.django == 'dev' || matrix.mode == 'flake8-strict' }}
+          python -m coverage run test.py
+          python -m flake8 .
+      - name: Upload coverage to Coveralls
+        if: success()
+        run: coveralls
