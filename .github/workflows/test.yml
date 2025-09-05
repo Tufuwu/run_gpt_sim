@@ -2,66 +2,54 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: [ main ]
   pull_request:
-    branches: ["main"]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  tests:
-    name: "Python ${{ matrix.python-version }}"
-    runs-on: "ubuntu-latest"
-    env:
-      USING_COVERAGE: "3.8,3.8,3.8,3.8"
+
+  build:
+
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.8", "pypy-3.8", "pypy-3.8"]
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.9]
+      fail-fast: false
 
     steps:
-      - uses: "actions/checkout@v2"
-      - uses: "actions/setup-python@v2"
+      - run: echo "Job triggered by a ${{ github.event_name }} event on branch ${{ github.ref }} in repository ${{ github.repository }}"
+      - name: Check out repository code
+        uses: actions/checkout@v2
         with:
-          python-version: "${{ matrix.python-version }}"
-      - name: "Install dependencies"
+          fetch-depth: 0
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install system dependencies
         run: |
-          set -xe
-          python -VV
-          python -m site
-          python -m pip install --upgrade pip wheel
-          python -m pip install --upgrade tox
-      - name: "Run tox targets for ${{ matrix.python-version }}"
-        run: "python -m tox"
-
-      # We always use a modern Python version for combining coverage to prevent
-      # parsing errors in older versions for modern code.
-      - uses: "actions/setup-python@v2"
-        with:
-          python-version: "3.9"
-
-      - name: "Upload coverage to Codecov"
-        if: "contains(env.USING_COVERAGE, matrix.python-version)"
-        uses: "codecov/codecov-action@v1"
-        with:
-          fail_ci_if_error: true
-
-  package:
-    name: "Build & verify package"
-    runs-on: "ubuntu-latest"
-
-    steps:
-      - uses: "actions/checkout@v2"
-      - uses: "actions/setup-python@v2"
-        with:
-          python-version: "3.9"
-
-      - name: "Install poetry and twine"
-        run: "python -m pip install poetry twine check-wheel-contents"
-      - name: "Build package"
-        run: "poetry build"
-      - name: "List result"
-        run: "ls -l dist"
-      - name: "Check wheel contents"
-        run: "check-wheel-contents dist/*.whl"
-      - name: "Check long_description"
-        run: "python -m twine check dist/*"
+          sudo apt-get -qq update
+          sudo apt-get install -y graphviz python-tk python-matplotlib
+      - name: Install Python dependencies
+        run: |
+          pip install Sphinx
+          pip install recommonmark
+          pip install pep8
+          pip install coverage
+          pip install coveralls
+          pip install numpy
+      - name: Run tests
+        run: |
+          python -Wall setup.py try
+          python setup.py install
+          python -Wall setup.py test
+          COVERAGE=1 coverage run test/runtest.py
+          python run.py --doctest
+          python run.py --html
+      - name: Run pep8
+        run: pep8 --exclude=asizeof.py,metadata.py,bottle*.py --max-line-length=80 pympler
+      - name: Upload coverage to Coveralls
+        run: coveralls
