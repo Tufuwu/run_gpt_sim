@@ -1,41 +1,32 @@
-name: CI
+name: Python package
 
-on:
-  push:
-    branches:
-      - "*"
-  pull_request:
-    branches:
-      - main
+on: [push]
 
 jobs:
-  test:
+  build:
+
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8", "3.9", "pypy-3.6"]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    name: "${{ matrix.os }} Python: ${{ matrix.python-version }}"
+        python-version: ["3.8", "3.8", "3.8", "3.8", "3.9", "pypy-3.6"]
+
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        pip install coverage
-    - name: Run tests
-      run: |
-        coverage run --source=olefile -m nose tests
-    - name: Upload Coverage
-      run: |
-        pip install coveralls
-        coveralls
-    - name: After Script
-      run: |
-        coverage report
-        pip install pycodestyle pyflakes
-        pyflakes .
-        pycodestyle --statistics --count .
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install tox-travis codecov
+
+      - name: Run tox
+        run: tox
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          flags: python_${{ matrix.python-version // [^[:alnum:]]/ }}
+          retries: 5
+          retry_wait: 5
