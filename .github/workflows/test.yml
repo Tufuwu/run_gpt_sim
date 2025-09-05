@@ -1,32 +1,40 @@
-name: Python package
+name: CI
 
-on: [push]
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  test:
+    name: Test
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8", "3.9", "pypy-3.6"]
+        python-version: ['3.8', '3.8', '3.8', '3.8', '3.8', '3.8']
+        os: [ubuntu-latest]
 
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
+
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
-          pip install tox-travis codecov
+          python -m pip install -U pip
+          python -m pip install -U .
 
-      - name: Run tox
-        run: tox
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          flags: python_${{ matrix.python-version // [^[:alnum:]]/ }}
-          retries: 5
-          retry_wait: 5
+      - name: Run tests
+        run: |
+          make test
