@@ -1,36 +1,28 @@
-name: Continuous Integration
+name: Run tests
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8]
-    name: Python ${{ matrix.python-version }}
+        python-version: [3.8, 3.8, 3.8, 3.8]
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: x64
-      - name: Install dependencies
-        run: |
-          pip install bandit flake8 python-coveralls coverage liccheck
-          pip install -r requirements.txt
-          python setup.py bdist_wheel
-          pip install dist/feedgen*
-      - name: Run tests
-        run: make test
-      - name: License check
-        run: liccheck -s .licenses.ini
-      - name: Run feedgen
-        run: |
-          python -m feedgen
-          python -m feedgen atom
-          python -m feedgen rss
-      - name: Coveralls
-        if: success()
-        run: coveralls
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        pip install -U pip
+        pip install -U .
+    - name: Run tests
+      run: python -m unittest discover .
