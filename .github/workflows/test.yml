@@ -1,52 +1,46 @@
-name: Python Package
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.8]
+        python-version:
+          - '3.8'
+          - '3.8'
+          - '3.8'
+          # - 'pypy-3.6' # Uncomment if pypy-3.6 support is needed
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install simplejson minimock coverage
-      - name: Run tests
-        run: make test
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyusb coverage coveralls pyserial PyYAML tqdm
+    - name: Build
+      run: python setup.py build
+    - name: Test with coverage
+      run: coverage run --source=stcgal setup.py test
+    - name: Coveralls
+      uses: AndreMiras/coveralls-python-action@develop
+      with:
+        parallel: true
 
-  deploy:
-    runs-on: ubuntu-latest
+  finish:
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install simplejson minimock coverage
-      - name: Deploy to PyPI
-        env:
-          TWINE_USERNAME: gpodder
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: |
-          python -m pip install --upgrade twine
-          twine upload dist/*
-
+    - name: Coveralls Finished
+      uses: AndreMiras/coveralls-python-action@develop
+      with:
+        parallel-finished: true
