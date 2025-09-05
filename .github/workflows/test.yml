@@ -2,47 +2,72 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.8"]
-
+        python-version: ['3.8', '3.8', '3.8', '3.8', '3.8']
+        include:
+          - python-version: '3.8'
+            build: default
+          - python-version: '3.8'
+            build: default
+          - python-version: '3.8'
+            build: default
+          - python-version: '3.8'
+            build: default
+          - python-version: '3.8'
+            build: default
+          - python-version: '3.8'
+            build: docs
+          - python-version: '3.8'
+            build: pep8
+          - python-version: '3.8'
+            build: cover
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m venv .env
-          .env/bin/pip install -U setuptools pip
-          .env/bin/pip install -r requirements.txt
-          .env/bin/pip install flake8
-      - name: Run flake8
-        run: .env/bin/flake8 --ignore=E501
-      - name: Set up DynamoDB Local
-        run: |
-          mkdir /tmp/dynamodb_local
-          wget -O - https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz | tar xz --directory /tmp/dynamodb_local
-          java -Djava.library.path=/tmp/dynamodb_local/DynamoDBLocal_lib -jar /tmp/dynamodb_local/DynamoDBLocal.jar -sharedDb -inMemory &
+          pip install pbr tox tox-gh-actions
+          if [ "${{ matrix.build }}" == "docs" ]; then
+            pip install -r doc/requirements.txt
+          fi
       - name: Run tests
         run: |
-          mkdir dump && cp -a test/testTable dump
-          .env/bin/python dynamodump.py -m restore -r local -s testTable -d testRestoredTable --host localhost --port 8000 --accessKey a --secretKey a
-          .env/bin/python dynamodump.py -m backup -r local -s testRestoredTable --host localhost --port 8000 --accessKey a --secretKey a
-          .env/bin/python test/test.py
-          .env/bin/python dynamodump.py -m restore -r local -s "*" --host localhost --port 8000 --accessKey a --secretKey a
-          rm -rf dump/test*
-          .env/bin/python dynamodump.py -m backup -r local -s "*" --host localhost --port 8000 --accessKey a --secretKey a
-          .env/bin/python test/test.py
-          .env/bin/python dynamodump.py -m restore -r local -s "test*" --host localhost --port 8000 --accessKey a --secretKey a --prefixSeparator ""
-          rm -rf dump/test*
-          .env/bin/python dynamodump.py -m backup -r local -s "test*" --host localhost --port 8000 --accessKey a --secretKey a --prefixSeparator ""
-          .env/bin/python test/test.py
+          if [ "${{ matrix.build }}" == "default" ]; then
+            tox
+          else
+            tox -e ${{ matrix.build }}
+          fi
+    allow_failures:
+      - python-version: '3.8'
+
+  deploy:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Build and publish
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          pip install build twine
+          python -m build --sdist --wheel
+          twine upload --skip-existing dist/*
+
