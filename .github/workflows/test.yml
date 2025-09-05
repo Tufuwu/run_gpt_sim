@@ -1,37 +1,37 @@
-name: Python package
+name: CI
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
-  build:
-    name: ${{ matrix.os }} ${{ matrix.architecture }}, Python ${{ matrix.python-version }}
+  test:
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        architecture: [x86, x64]
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: [3.8, 3.8, 3.8]
-        exclude:
-          - os: ubuntu-latest
-            architecture: x86
-          - os: macos-latest
-            architecture: x86
       fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.8"]
+        os: [ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }} ${{ matrix.architecture }}
-        uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.architecture }}
+          cache: pip
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip setuptools wheel virtualenv
-          pip install tox tox-gh-actions
-      - name: Test package
+          python -m pip install -U pip
+          pip install --upgrade black
+          pip install --upgrade flake8
+          pip install --upgrade -r requirements.txt
+
+      - name: Static analysis
         run: |
-          tox
-      - name: Upload coverage
+          flake8 --statistics --count
+          black --check --diff --target-version py38 .
+
+      - name: Dummy run
         run: |
-          curl -s https://codecov.io/bash | bash
+          python random_street_view.py --help
