@@ -1,44 +1,21 @@
-name: CI
+name: Python
 
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
-  workflow_dispatch:
+on: [push]
 
 jobs:
-  test:
-    runs-on: ubuntu-22.04
+  build:
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.8"]
-
+        python-version: [3.8]
     steps:
-      - name: checkout-code
-        uses: actions/checkout@v3
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
 
-      - name: prepare-python
-        uses: actions/setup-python@v3
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: install-miniconda
-        uses: conda-incubator/setup-miniconda@v2
-        with:
-          auto-activate-base: false
-
-      - name: create-conda-environment
-        run: |
-          conda create -q -n test python=${{ matrix.python-version }}
-          conda activate test
-
-      - name: install-dependencies
-        run: |
-          conda install altair matplotlib numba numpy pandas pyteomics pytest -c defaults -c bioconda -c conda-forge
-          python setup.py install
-
-      - name: run-tests
-        run: |
-          pytest
+    - name: Install dependencies
+      run: make install-deps
+    - name: Build
+      run: make
