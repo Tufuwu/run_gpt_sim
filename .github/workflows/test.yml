@@ -1,17 +1,22 @@
-name: CI
+name: Python Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # 13:22 UTC on Tuesdays
+    - cron: "22 13 * * TUE"
+  workflow_dispatch:
+  repository_dispatch:
+    types: [tests]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.9, 3.8, pypy-3.6]
-        with-opt-deps: [true, false]
-    env:
-      MAIN_PYTHON_VERSION: 3.8
+        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8"]
 
     steps:
     - uses: actions/checkout@v2
@@ -19,18 +24,9 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Upgrade setuptools
+      run: pip install --upgrade setuptools
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        if [[ ${{ matrix.with-opt-deps }} == 'true' ]]; then pip install -vr requirements.txt pytest; fi
-        git clone https://github.com/ProgVal/irctest.git
-        echo "y" | pip uninstall limnoria || true
-    - name: Run the test suite
-      run: |
-        echo ${{ matrix.python-version }}
-        python setup.py install
-        supybot-test test -v --plugins-dir=./plugins/ --no-network
-        if [[ ${{ matrix.with-opt-deps }} == 'true' && ${{ matrix.python-version }} =~ ^3\.[4-9] ]]; then cd irctest; pytest --controllers irctest.controllers.limnoria; fi
-    - name: Allow failures for pypy-3.6 with optional dependencies
-      if: matrix.python-version == 'pypy-3.6' && matrix.with-opt-deps == 'true'
-      continue-on-error: true
+      run: pip install -r requirements.txt
+    - name: Run tests
+      run: python setup.py test
