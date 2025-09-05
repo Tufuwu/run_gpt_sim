@@ -2,57 +2,23 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   pull_request:
-    branches: ["main"]
-  workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-22.04
+  build:
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.8", "3.8", "3.9", "3.10"]
-
+        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8"]
+        toxenv: [flake8, isort, test]
     steps:
-      - name: checkout-code
-        uses: actions/checkout@v3
-
-      - name: setup-python
-        uses: actions/setup-python@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: install-dependencies
-        run: |
-          pip install -r mock/requirements.txt
-          pip install pytest-cov
-
-      - name: run-tests
-        run: |
-          PYTHON=python${{ matrix.python-version }} ./mock/run-tests.sh
-
-  copr-build:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        package: ["mock", "mock-core-configs"]
-
-    steps:
-      - name: checkout-code
-        uses: actions/checkout@v3
-
-      - name: setup-python
-        uses: actions/setup-python@v3
-        with:
-          python-version: "3.9"
-
-      - name: install-dependencies
-        run: |
-          pip install -r mock/requirements.txt
-
-      - name: copr-build
-        run: |
-          PACKAGE=${{ matrix.package }} .travis/copr-build
+      - run: pip install tox-travis coveralls
+      - run: tox -e ${{ matrix.toxenv }}
+      - if: success() && matrix.toxenv == 'test'
+        run: coveralls
