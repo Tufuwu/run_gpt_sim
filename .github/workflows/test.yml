@@ -2,77 +2,125 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-      - dev
-    tags:
+    branches: [ main ]
   pull_request:
+    branches:
+      - '**'
 
 jobs:
-  test:
+  run_tests:
+    name: Run Tests
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.9"]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+        os: [ubuntu-22.04]
+        python-version: ["3.8", "3.8", "3.8", "3.9", "3.10"]
+        django-version: ["1.11", "2.2", "3.2", "4.0", "4.1"]
+        arch: [x64, ppc64le]
+        include:
+          - python-version: "3.8"
+            django-version: "1.11"
+          - python-version: "3.8"
+            django-version: "2.2"
+          - python-version: "3.8"
+            django-version: "1.11"
+          - python-version: "3.8"
+            django-version: "2.2"
+          - python-version: "3.9"
+            django-version: "2.2"
+          - python-version: "3.9"
+            django-version: "3.2"
+          - python-version: "3.10"
+            django-version: "3.2"
+          - python-version: "3.10"
+            django-version: "4.0"
+          - python-version: "3.10"
+            django-version: "4.1"
+        exclude:
+          - python-version: "3.8"
+            django-version: "3.2"
+          - python-version: "3.8"
+            django-version: "4.0"
+          - python-version: "3.8"
+            django-version: "4.1"
+          - python-version: "3.8"
+            django-version: "3.2"
+          - python-version: "3.8"
+            django-version: "4.0"
+          - python-version: "3.8"
+            django-version: "4.1"
+          - python-version: "3.8"
+            django-version: "3.2"
+          - python-version: "3.8"
+            django-version: "4.0"
+          - python-version: "3.8"
+            django-version: "4.1"
+          - python-version: "3.9"
+            django-version: "4.0"
+          - python-version: "3.9"
+            django-version: "4.1"
+
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: pip install ".[build]"
-      - name: Run tests
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade setuptools
+          pip install tox
+
+      - name: Run Tests
+        env:
+          TOXENV: py${{ matrix.python-version }}-django${{ matrix.django-version }}
         run: tox
 
-  code-quality:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Install dependencies
-        run: pip install ".[build]"
-      - name: Run code quality checks
-        run: tox -e coverage,mypy,style,docs,dist-test
+  run_quality_checks:
+    name: Quality Checks
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: ["3.9"]
 
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release')
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.8
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
-      - name: Install dependencies
-        run: pip install ".[build]"
-      - name: Build and publish
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          python setup.py sdist bdist_wheel
-          twine upload dist/*
+          python-version: ${{ matrix.python-version }}
 
-  pre-release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-    runs-on: ubuntu-latest
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade setuptools
+          pip install tox
+
+      - name: Run Quality Checks
+        env:
+          TOXENV: flake8
+        run: tox
+
+  run_coverage:
+    name: Coverage
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version: ["3.9"]
+
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.8
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
-      - name: Install dependencies
-        run: pip install ".[build]"
-      - name: Build and publish pre-release
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
         run: |
-          python setup.py sdist bdist_wheel
-          twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+          pip install --upgrade setuptools
+          pip install tox
+
+      - name: Run Coverage
+        env:
+          TOXENV: coverage
+        run: tox
