@@ -1,32 +1,29 @@
-name: "CI Workflow"
+name: Python Tests
+
 on:
-  pull_request:
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
 jobs:
-  build-test:
-    runs-on: ubuntu-22.04
+  build:
+
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ['3.8']
+        python-version: [3.8, 3.8, 3.8, 3.8, 3.8, 3.8, 3.8, pypy]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          pip install -r requirements-dev.txt
-          pip install -e .
-      - name: Run tests
-        run: pytest pywnedpasswords/tests/
-      - name: Lint with flake8
-        run: flake8 pywnedpasswords
-      - name: Check code style with black
-        run: black --check --safe
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Run setconf.py
+      run: ./setconf.py --test
+    - name: Run test.sh
+      run: cd testcases && ./test.sh
