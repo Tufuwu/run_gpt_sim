@@ -1,34 +1,46 @@
-name: Python package
+name: CI
 
 on:
-  - push
-  - pull_request
-
-concurrency:
-  group: ${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 9
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8"]
-
+        python-version: [3.8, 3.8]
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+
+      # configure python
+      - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      # install dependencies
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+        run: bash scripts/install.sh
+
+      # run tests
       - name: Run tests
-        run: make test
+        run: bash scripts/run_tests.sh
+
+      # run sonarcloud analysis
+      - name: SonarCloud Scan
+        if: github.event_name == 'push' && github.event.pull_request == null
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: sonar-scanner
+
+  cache:
+    paths:
+      - ~/.sonar/cache
+
+notifications:
+  email:
+    on_success: never
+    on_failure: always
