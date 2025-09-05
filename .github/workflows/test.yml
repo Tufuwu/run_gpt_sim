@@ -2,23 +2,48 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.8", "3.8", "3.8", "3.8"]
-        toxenv: [flake8, isort, test]
+        python-version: [3.8]
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - run: pip install tox-travis coveralls
-      - run: tox -e ${{ matrix.toxenv }}
-      - if: success() && matrix.toxenv == 'test'
-        run: coveralls
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Miniconda
+      run: |
+        wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/miniconda.sh
+        bash $HOME/miniconda.sh -b -u -p $HOME/miniconda
+        echo "$HOME/miniconda/bin" >> $GITHUB_PATH
+        conda config --set always_yes yes --set changeps1 no
+        conda update -q conda
+        conda create -q -n test python=${{ matrix.python-version }}
+        source $HOME/miniconda/bin/activate test
+
+    - name: Install dependencies
+      run: |
+        pip install nose coverage coveralls flake8 scikit-image
+        pip install -e .
+
+    - name: Lint with flake8
+      run: |
+        flake8
+
+    - name: Run tests
+      run: |
+        nosetests -sv --with-doctest --no-byte-compile --with-coverage --cover-package=tftb
+
+    - name: Upload coverage to coveralls
+      uses: coverallsapp/github-action@v1.1.2
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
